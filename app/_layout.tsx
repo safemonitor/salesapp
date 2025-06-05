@@ -37,13 +37,13 @@ export default function RootLayout() {
   useEffect(() => {
     // Only attempt navigation when auth is not loading, navigation state is ready,
     // and the session state is definitively known
-    if (!authLoading && rootNavigationState?.isReady && !session) {
+    if (!authLoading && rootNavigationState && rootNavigationState.isReady && !session) {
       router.replace('/login');
     }
   }, [session, authLoading, rootNavigationState?.isReady]);
 
   // Don't render anything until fonts are loaded and navigation is ready
-  if (!fontsLoaded && !fontError || !rootNavigationState?.isReady) {
+  if (!fontsLoaded && !fontError || !rootNavigationState || !rootNavigationState.isReady) {
     return null;
   }
 
