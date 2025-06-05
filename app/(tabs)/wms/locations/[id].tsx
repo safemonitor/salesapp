@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, Package, Edit, Trash2, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Package, CreditCard as Edit, Trash2, MapPin } from 'lucide-react-native';
 import { getLocationById } from '@/services/locationService';
 import { getInventory } from '@/services/inventoryService';
 import { Row } from '@/types/database';
