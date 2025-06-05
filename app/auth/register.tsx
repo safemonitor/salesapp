@@ -7,23 +7,65 @@ import {
   TouchableOpacity, 
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, ArrowLeft, UserPlus } from 'lucide-react-native';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/utils/supabase';
 
 export default function RegisterScreen() {
+  const { signUp } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleRegister = () => {
-    // In a real app, perform registration
-    // For now, just navigate to the main app
-    router.replace('/(tabs)');
+  const handleRegister = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: { user }, error: signUpError } = await signUp(email, password);
+      if (signUpError) throw signUpError;
+
+      if (user) {
+        // Create user profile
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: user.id,
+              email: user.email,
+              full_name: name,
+              role: 'picker' // Default role
+            }
+          ]);
+
+        if (profileError) throw profileError;
+      }
+
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      setError(error.message || 'Failed to create account');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +78,7 @@ export default function RegisterScreen() {
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
+          disabled={loading}
         >
           <ArrowLeft size={24} color="#1E293B" />
         </TouchableOpacity>
@@ -46,6 +89,12 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.formContainer}>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Full Name</Text>
             <TextInput
@@ -54,6 +103,7 @@ export default function RegisterScreen() {
               placeholderTextColor="#94A3B8"
               value={name}
               onChangeText={setName}
+              editable={!loading}
             />
           </View>
 
@@ -67,6 +117,7 @@ export default function RegisterScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
             />
           </View>
 
@@ -80,10 +131,12 @@ export default function RegisterScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                editable={!loading}
               />
               <TouchableOpacity
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword(!showPassword)}
+                disabled={loading}
               >
                 {showPassword ? (
                   <EyeOff size={20} color="#64748B" />
@@ -104,10 +157,12 @@ export default function RegisterScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
+                editable={!loading}
               />
               <TouchableOpacity
                 style={styles.passwordToggle}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={loading}
               >
                 {showConfirmPassword ? (
                   <EyeOff size={20} color="#64748B" />
@@ -126,15 +181,25 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-            <UserPlus size={20} color="#FFFFFF" />
-            <Text style={styles.registerButtonText}>Create Account</Text>
+          <TouchableOpacity 
+            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <UserPlus size={20} color="#FFFFFF" />
+                <Text style={styles.registerButtonText}>Create Account</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <Link href="/login" asChild>
-              <TouchableOpacity>
+              <TouchableOpacity disabled={loading}>
                 <Text style={styles.loginLink}>Log In</Text>
               </TouchableOpacity>
             </Link>
@@ -187,6 +252,18 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 24,
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: 20,
@@ -249,6 +326,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+  },
+  registerButtonDisabled: {
+    opacity: 0.7,
   },
   registerButtonText: {
     fontFamily: 'Inter-SemiBold',

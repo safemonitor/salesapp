@@ -8,21 +8,40 @@ import {
   Image, 
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, LogIn } from 'lucide-react-native';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginScreen() {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    // In a real app, perform authentication
-    // For now, just navigate to the main app
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await signIn(email, password);
+      if (error) throw error;
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign in');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,6 +65,12 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.formContainer}>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Email</Text>
             <TextInput
@@ -56,6 +81,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
             />
           </View>
 
@@ -69,10 +95,12 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                editable={!loading}
               />
               <TouchableOpacity
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword(!showPassword)}
+                disabled={loading}
               >
                 {showPassword ? (
                   <EyeOff size={20} color="#64748B" />
@@ -87,6 +115,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={styles.rememberMeContainer}
               onPress={() => setRememberMe(!rememberMe)}
+              disabled={loading}
             >
               <View style={[
                 styles.checkbox,
@@ -95,20 +124,30 @@ export default function LoginScreen() {
               <Text style={styles.rememberMeText}>Remember me</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity>
+            <TouchableOpacity disabled={loading}>
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <LogIn size={20} color="#FFFFFF" />
-            <Text style={styles.loginButtonText}>Log In</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <LogIn size={20} color="#FFFFFF" />
+                <Text style={styles.loginButtonText}>Log In</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
             <Link href="/auth/register" asChild>
-              <TouchableOpacity>
+              <TouchableOpacity disabled={loading}>
                 <Text style={styles.registerLink}>Register</Text>
               </TouchableOpacity>
             </Link>
@@ -173,6 +212,18 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 24,
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: 20,
@@ -254,6 +305,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     fontFamily: 'Inter-SemiBold',

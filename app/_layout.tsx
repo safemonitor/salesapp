@@ -1,15 +1,18 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { useAuth } from '@/hooks/useAuth';
+import LoadingScreen from '@/components/LoadingScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { session, loading: authLoading } = useAuth();
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
     'Inter-Medium': Inter_500Medium,
@@ -29,8 +32,21 @@ export default function RootLayout() {
     onLayoutRootView();
   }, [fontsLoaded, fontError]);
 
+  useEffect(() => {
+    if (!authLoading) {
+      // Redirect to login if not authenticated
+      if (!session) {
+        router.replace('/login');
+      }
+    }
+  }, [session, authLoading]);
+
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  if (authLoading) {
+    return <LoadingScreen />;
   }
 
   return (
